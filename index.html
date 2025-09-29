@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Keuangan Pribadi V4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            /* === PENAMBAHAN LATAR MOTIF BATIK === */
+            background-color: #f8fafc; /* slate-50 */
+            background-image: url("data:image/svg+xml,%3Csvg width='28' height='28' viewBox='0 0 28 28' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23e2e8f0' fill-opacity='0.4'%3E%3Cpath fill-rule='evenodd' d='M0 0h28v28H0V0zm14 1.4a12.6 12.6 0 100 25.2 12.6 12.6 0 000-25.2zM14 5.6a8.4 8.4 0 100 16.8 8.4 8.4 0 000-16.8z'/%3E%3C/g%3E%3C/svg%3E");
+        }
+        .tab-button.active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
+        .sheet { display: none; }
+        .sheet.active { display: block; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        input, select { border-radius: 0.375rem; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; }
+        input:focus, select:focus { outline: 2px solid transparent; outline-offset: 2px; border-color: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
+        .shadow-batik { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.02); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-6">
+        <header class="bg-white/80 backdrop-blur-sm shadow-batik rounded-xl p-6 mb-6 border border-slate-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900">Laporan Keuangan Pribadi</h1>
+                    <p class="text-slate-500 mt-1">Spreadsheet interaktif dengan sentuhan estetika Nusantara.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="year-selector" class="text-sm font-medium">Tahun:</label>
+                    <select id="year-selector" class="bg-slate-100 font-semibold"></select>
+                </div>
+            </div>
+        </header>
+
+        <div class="mb-4 overflow-x-auto whitespace-nowrap pb-2 border-b-2 border-slate-200">
+            <div id="tab-container" class="flex space-x-2">
+                <button class="tab-button py-2 px-4 border-b-2 border-transparent transition-colors duration-300" onclick="changeSheet('setup', this)">Setup & Kategori</button>
+                <button class="tab-button py-2 px-4 border-b-2 border-transparent transition-colors duration-300" onclick="changeSheet('ringkasan', this)">Ringkasan & Dashboard</button>
+            </div>
+        </div>
+
+        <main id="sheets-container" class="bg-white/80 backdrop-blur-sm shadow-batik rounded-xl p-4 md:p-6 border border-slate-200">
+            <div id="sheet-setup" class="sheet"></div>
+
+            <div id="sheet-ringkasan" class="sheet">
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-slate-900">Ringkasan Tahunan <span id="summary-year-title" class="text-blue-600"></span></h2>
+                    <button onclick="exportToExcel('ringkasan-table', `laporan_keuangan_${currentYear}.csv`)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 text-sm">
+                        Export ke Excel (.csv)
+                    </button>
+                 </div>
+                 <p class="text-slate-600 mb-6">Data di halaman ini diperbarui secara otomatis berdasarkan masukan dari setiap sheet bulanan.</p>
+                 <div class="overflow-x-auto rounded-lg border">
+                     <table class="min-w-full divide-y divide-slate-200" id="ringkasan-table">
+                         <thead class="bg-slate-100">
+                             <tr>
+                                 <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Bulan</th>
+                                 <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Pemasukan</th>
+                                 <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Perbandingan Pemasukan</th>
+                                 <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Pengeluaran</th>
+                                 <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Perbandingan Pengeluaran</th>
+                                 <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Investasi</th>
+                                 <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Cashflow</th>
+                                 <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Perbandingan Cashflow</th>
+                             </tr>
+                         </thead>
+                         <tbody class="bg-white divide-y divide-slate-200"></tbody>
+                         <tfoot class="bg-slate-200 font-bold">
+                             <tr>
+                                 <td class="px-4 py-4 text-sm">TOTAL</td>
+                                 <td class="px-4 py-4 text-right text-sm" id="total-pemasukan-tahunan"></td>
+                                 <td class="px-4 py-4 text-center text-sm"></td>
+                                 <td class="px-4 py-4 text-right text-sm" id="total-pengeluaran-tahunan"></td>
+                                 <td class="px-4 py-4 text-center text-sm"></td>
+                                 <td class="px-4 py-4 text-right text-sm" id="total-investasi-tahunan"></td>
+                                 <td class="px-4 py-4 text-right text-sm" id="total-cashflow-tahunan"></td>
+                                 <td class="px-4 py-4 text-center text-sm"></td>
+                             </tr>
+                         </tfoot>
+                     </table>
+                 </div>
+
+                <div id="annual-comparison-dashboard" class="mt-10">
+                    <h3 class="text-xl font-semibold text-slate-900 mb-4">Perbandingan dengan Tahun Sebelumnya (<span id="previous-year-label"></span>)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><p class="text-sm text-slate-500">Total Pemasukan</p><p class="text-2xl font-bold text-slate-800" id="compare-current-income">-</p><div class="flex justify-between items-center mt-2 text-sm"><span class="text-slate-600" id="compare-previous-income-label">vs Tahun Lalu</span><span class="font-semibold px-2 py-0.5 rounded" id="compare-income-change">-</span></div></div>
+                        <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><p class="text-sm text-slate-500">Total Pengeluaran</p><p class="text-2xl font-bold text-slate-800" id="compare-current-expense">-</p><div class="flex justify-between items-center mt-2 text-sm"><span class="text-slate-600" id="compare-previous-expense-label">vs Tahun Lalu</span><span class="font-semibold px-2 py-0.5 rounded" id="compare-expense-change">-</span></div></div>
+                        <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><p class="text-sm text-slate-500">Total Cashflow</p><p class="text-2xl font-bold text-slate-800" id="compare-current-cashflow">-</p><div class="flex justify-between items-center mt-2 text-sm"><span class="text-slate-600" id="compare-previous-cashflow-label">vs Tahun Lalu</span><span class="font-semibold px-2 py-0.5 rounded" id="compare-cashflow-change">-</span></div></div>
+                    </div>
+                </div>
+
+                 <div id="charts-dashboard" class="mt-12 border-t-2 border-slate-200 pt-8">
+                    <h3 class="text-2xl font-semibold text-slate-900 mb-6">Dashboard Visual Keuangan</h3>
+                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                         <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><h4 class="text-lg font-semibold text-slate-800 mb-3">Komposisi Pengeluaran Tahunan</h4><canvas id="yearlyPieChart"></canvas></div>
+                         <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><h4 class="text-lg font-semibold text-slate-800 mb-3">Pemasukan vs Pengeluaran per Bulan</h4><canvas id="yearlyBarChart"></canvas></div>
+                         <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><h4 class="text-lg font-semibold text-slate-800 mb-3">Analisis Waterfall Cashflow</h4><canvas id="yearlyWaterfallChart"></canvas></div>
+                         <div class="bg-slate-50 p-4 rounded-lg shadow-sm border"><h4 class="text-lg font-semibold text-slate-800 mb-3">Tren Cashflow Bulanan</h4><canvas id="yearlyLineChart"></canvas></div>
+                     </div>
+                 </div>
+            </div>
+            
+            <div id="monthly-sheets-container"></div>
+        </main>
+        
+        <footer class="text-center mt-8 text-sm text-slate-500">
+             <p>Dibuat dengan ❤️ untuk manajemen keuangan yang lebih baik. Versi 4.0 (Estetika & Warna)</p>
+             <p class="mt-2 text-xs">Catatan: Data disimpan secara otomatis di browser (LocalStorage).</p>
+        </footer>
+    </div>
+    
+    <script>
+        // --- DATA & CONFIGURATION ---
+        let currentYear = new Date().getFullYear();
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        let sumberPemasukan = [];
+        let kategoriPengeluaran = {};
+        let yearlyPieChart, yearlyBarChart, yearlyWaterfallChart, yearlyLineChart;
+
+        // === PALET WARNA BARU UNTUK SETIAP BULAN ===
+        const monthRowColors = [
+            { bg: 'bg-sky-50', hover: 'hover:bg-sky-100' },         // Januari
+            { bg: 'bg-rose-50', hover: 'hover:bg-rose-100' },       // Februari
+            { bg: 'bg-emerald-50', hover: 'hover:bg-emerald-100' }, // Maret
+            { bg: 'bg-amber-50', hover: 'hover:bg-amber-100' },     // April
+            { bg: 'bg-violet-50', hover: 'hover:bg-violet-100' },   // Mei
+            { bg: 'bg-lime-50', hover: 'hover:bg-lime-100' },       // Juni
+            { bg: 'bg-cyan-50', hover: 'hover:bg-cyan-100' },       // Juli
+            { bg: 'bg-orange-50', hover: 'hover:bg-orange-100' },   // Agustus
+            { bg: 'bg-indigo-50', hover: 'hover:bg-indigo-100' },   // September
+            { bg: 'bg-yellow-50', hover: 'hover:bg-yellow-100' },   // Oktober
+            { bg: 'bg-fuchsia-50', hover: 'hover:bg-fuchsia-100' }, // November
+            { bg: 'bg-slate-50', hover: 'hover:bg-slate-100' }      // Desember
+        ];
+
+        // --- CORE APP LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            loadFullStateForYear(currentYear);
+        });
+
+        function initApp() {
+            populateYearSelector();
+            document.getElementById('sheet-setup').innerHTML = getSetupHTML();
+            populateCategories();
+            initCharts();
+            generateAllMonthlySheets(currentYear);
+            changeSheet('setup', document.querySelector('.tab-button'));
+        }
+
+        function loadFullStateForYear(year) {
+            currentYear = parseInt(year);
+            document.getElementById('year-selector').value = year;
+            document.getElementById('summary-year-title').textContent = year;
+            document.getElementById('previous-year-label').textContent = year - 1;
+            
+            generateAllMonthlySheets(year);
+            const dataLoaded = loadState(year);
+            if (!dataLoaded) {
+                 months.forEach(m => {
+                    addPemasukanRow(m.toLowerCase());
+                    addPengeluaranRow(m.toLowerCase());
+                 });
+            }
+            updateAllTotals();
+        }
+        
+        // --- YEAR SELECTOR ---
+        function populateYearSelector() {
+            const selector = document.getElementById('year-selector');
+            const year = new Date().getFullYear();
+            for (let i = year + 5; i >= year - 5; i--) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = i;
+                if (i === currentYear) option.selected = true;
+                selector.appendChild(option);
+            }
+            selector.addEventListener('change', (e) => {
+                loadFullStateForYear(e.target.value);
+            });
+        }
+        
+        // --- DATA PERSISTENCE ---
+        function saveState(year) {
+            const allData = { pemasukan: {}, pengeluaran: {} };
+            months.forEach(month => {
+                const monthId = month.toLowerCase();
+                allData.pemasukan[monthId] = Array.from(document.querySelectorAll(`#${monthId}-pemasukan-body tr`)).map(row => {
+                    const inputs = row.querySelectorAll('input, select');
+                    return { date: inputs[0].value, sumber: inputs[1].value, jumlahRaw: inputs[2].getAttribute('data-raw-value') || 0, catatan: inputs[3].value };
+                }).filter(d => d.jumlahRaw > 0);
+                allData.pengeluaran[monthId] = Array.from(document.querySelectorAll(`#${monthId}-pengeluaran-body tr`)).map(row => {
+                    const inputs = row.querySelectorAll('input, select');
+                    return { date: inputs[0].value, kategori: inputs[1].value, alokasi: inputs[2].value, jumlahRaw: inputs[3].getAttribute('data-raw-value') || 0, deskripsi: inputs[4].value, metode: inputs[5].value, tenor: inputs[6].value, jatuhTempo: inputs[7].value };
+                }).filter(d => d.jumlahRaw > 0);
+            });
+            localStorage.setItem(`keuanganData_${year}`, JSON.stringify(allData));
+        }
+
+        function loadState(year) {
+            const savedData = localStorage.getItem(`keuanganData_${year}`);
+            if (!savedData) return false;
+            const allData = JSON.parse(savedData);
+            months.forEach(month => {
+                const monthId = month.toLowerCase();
+                const pemasukanData = allData.pemasukan ? (allData.pemasukan[monthId] || []) : [];
+                const pengeluaranData = allData.pengeluaran ? (allData.pengeluaran[monthId] || []) : [];
+                if (pemasukanData.length > 0) {
+                    pemasukanData.forEach(rowData => addPemasukanRow(monthId, rowData));
+                } else { addPemasukanRow(monthId); }
+                if (pengeluaranData.length > 0) {
+                    pengeluaranData.forEach(rowData => addPengeluaranRow(monthId, rowData));
+                } else { addPengeluaranRow(monthId); }
+            });
+            return true;
+        }
+        
+        function getYearlyData(year) {
+            const savedData = localStorage.getItem(`keuanganData_${year}`);
+            if (!savedData) return null;
+            return JSON.parse(savedData);
+        }
+
+        // --- CALCULATIONS & UPDATES ---
+        function updateAllTotals() {
+            months.forEach(month => {
+                const monthId = month.toLowerCase();
+                if (document.getElementById(`sheet-${monthId}`)) {
+                    updateMonthlyTotals(monthId);
+                }
+            });
+            updateYearlySummary();
+            updateAnnualComparison();
+            updateCharts();
+        }
+
+        function updateYearlySummary() {
+            let grandTotalPemasukan = 0, grandTotalPengeluaran = 0, grandTotalInvestasi = 0;
+            const tbody = document.querySelector('#ringkasan-table tbody');
+            tbody.innerHTML = '';
+            let prevPemasukan = 0, prevPengeluaran = 0, prevCashflow = 0;
+
+            months.forEach((month, index) => {
+                const monthId = month.toLowerCase();
+                const pemasukan = parseCurrency(document.getElementById(`${monthId}-total-pemasukan`)?.textContent || '0');
+                const pengeluaran = parseCurrency(document.getElementById(`${monthId}-total-pengeluaran`)?.textContent || '0');
+                const investasi = parseCurrency(document.getElementById(`${monthId}-total-investasi`)?.textContent || '0');
+                const cashflow = pemasukan - pengeluaran;
+                
+                grandTotalPemasukan += pemasukan;
+                grandTotalPengeluaran += pengeluaran;
+                grandTotalInvestasi += investasi;
+                
+                const tr = tbody.insertRow();
+                // === TERAPKAN WARNA BARIS BULANAN DI SINI ===
+                const colors = monthRowColors[index];
+                tr.className = `${colors.bg} ${colors.hover} transition-colors duration-200`;
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-medium text-slate-800">${month}</td>
+                    <td class="px-4 py-3 text-right">${formatCurrency(pemasukan)}</td>
+                    ${createComparisonCellHTML(pemasukan, prevPemasukan, false, index)}
+                    <td class="px-4 py-3 text-right">${formatCurrency(pengeluaran)}</td>
+                    ${createComparisonCellHTML(pengeluaran, prevPengeluaran, true, index)}
+                    <td class="px-4 py-3 text-right">${formatCurrency(investasi)}</td>
+                    <td class="px-4 py-3 text-right font-semibold ${cashflow >= 0 ? 'text-green-700' : 'text-red-700'}">${formatCurrency(cashflow)}</td>
+                    ${createComparisonCellHTML(cashflow, prevCashflow, false, index)}
+                `;
+                prevPemasukan = pemasukan;
+                prevPengeluaran = pengeluaran;
+                prevCashflow = cashflow;
+            });
+
+            const grandTotalCashflow = grandTotalPemasukan - grandTotalPengeluaran;
+            document.getElementById('total-pemasukan-tahunan').textContent = formatCurrency(grandTotalPemasukan);
+            document.getElementById('total-pengeluaran-tahunan').textContent = formatCurrency(grandTotalPengeluaran);
+            document.getElementById('total-investasi-tahunan').textContent = formatCurrency(grandTotalInvestasi);
+            document.getElementById('total-cashflow-tahunan').textContent = formatCurrency(grandTotalCashflow);
+        }
+
+        function createComparisonCellHTML(current, previous, invertColorLogic = false, index = 1) {
+            let content = '-'; let className = 'text-slate-500';
+            if (index > 0 && previous !== 0) {
+                const change = ((current - previous) / Math.abs(previous)) * 100;
+                const prefix = change >= 0 ? '▲' : '▼';
+                let isGood = change > 0;
+                if (invertColorLogic) isGood = change < 0;
+                if (change === 0) isGood = null;
+                className = isGood === true ? 'text-green-600' : (isGood === false ? 'text-red-600' : 'text-slate-500');
+                content = `${prefix} ${Math.abs(change).toFixed(1)}%`;
+            } else if (index > 0 && current > 0) {
+                content = '▲ 100.0%'; className = 'text-green-600';
+            }
+            return `<td class="px-4 py-3 text-center text-sm font-semibold ${className}">${content}</td>`;
+        }
+        function updateAnnualComparison() {
+            const previousYear = currentYear - 1;
+            const previousYearData = getYearlyData(previousYear);
+            let prevTotals = { income: 0, expense: 0, cashflow: 0 };
+            if (previousYearData) {
+                Object.values(previousYearData.pemasukan).flat().forEach(item => prevTotals.income += parseFloat(item.jumlahRaw || 0));
+                Object.values(previousYearData.pengeluaran).flat().forEach(item => prevTotals.expense += parseFloat(item.jumlahRaw || 0));
+                prevTotals.cashflow = prevTotals.income - prevTotals.expense;
+            }
+            const currentTotals = {
+                income: parseCurrency(document.getElementById('total-pemasukan-tahunan').textContent),
+                expense: parseCurrency(document.getElementById('total-pengeluaran-tahunan').textContent),
+                cashflow: parseCurrency(document.getElementById('total-cashflow-tahunan').textContent)
+            };
+            document.getElementById('compare-current-income').textContent = formatCurrency(currentTotals.income);
+            document.getElementById('compare-current-expense').textContent = formatCurrency(currentTotals.expense);
+            document.getElementById('compare-current-cashflow').textContent = formatCurrency(currentTotals.cashflow);
+            document.getElementById('compare-previous-income-label').textContent = `vs ${formatCurrency(prevTotals.income)}`;
+            document.getElementById('compare-previous-expense-label').textContent = `vs ${formatCurrency(prevTotals.expense)}`;
+            document.getElementById('compare-previous-cashflow-label').textContent = `vs ${formatCurrency(prevTotals.cashflow)}`;
+            updateChangeIndicator('income', currentTotals.income, prevTotals.income);
+            updateChangeIndicator('expense', currentTotals.expense, prevTotals.expense, true);
+            updateChangeIndicator('cashflow', currentTotals.cashflow, prevTotals.cashflow);
+        }
+        function updateChangeIndicator(type, current, previous, invert = false) {
+            const el = document.getElementById(`compare-${type}-change`);
+            if (previous === 0) {
+                el.textContent = current > 0 ? '▲ 100%' : '-';
+                el.className = 'font-semibold px-2 py-0.5 rounded ' + (current > 0 ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800');
+                return;
+            }
+            const change = ((current - previous) / Math.abs(previous)) * 100;
+            const prefix = change > 0 ? '▲' : '▼';
+            el.textContent = `${prefix} ${Math.abs(change).toFixed(1)}%`;
+            let isGood = change > 0;
+            if (invert) isGood = change < 0;
+            el.className = 'font-semibold px-2 py-0.5 rounded ' + (isGood ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+        }
+        function updateMonthlyTotals(monthId) {
+            let totalPemasukan = 0;
+            document.querySelectorAll(`#${monthId}-pemasukan-body .pemasukan-jumlah`).forEach(input => { totalPemasukan += parseFloat(input.getAttribute('data-raw-value') || 0); });
+            const totalPemasukanEl = document.getElementById(`${monthId}-total-pemasukan`); if (totalPemasukanEl) totalPemasukanEl.textContent = formatCurrency(totalPemasukan);
+            let totalPengeluaran = 0, totalInvestasi = 0;
+            document.querySelectorAll(`#${monthId}-pengeluaran-body tr`).forEach(row => {
+                const jumlah = parseFloat(row.querySelector('.pengeluaran-jumlah').getAttribute('data-raw-value') || 0); 
+                const alokasi = row.querySelector('.pengeluaran-alokasi').value;
+                totalPengeluaran += jumlah;
+                if (alokasi.includes('Saving/Invest')) totalInvestasi += jumlah;
+            });
+            const totalPengeluaranEl = document.getElementById(`${monthId}-total-pengeluaran`); if (totalPengeluaranEl) totalPengeluaranEl.textContent = formatCurrency(totalPengeluaran);
+            const totalInvestasiEl = document.getElementById(`${monthId}-total-investasi`); if (totalInvestasiEl) totalInvestasiEl.textContent = formatCurrency(totalInvestasi);
+            const cashflow = totalPemasukan - totalPengeluaran;
+            const cashflowEl = document.getElementById(`${monthId}-cashflow`);
+            if(cashflowEl){ cashflowEl.textContent = formatCurrency(cashflow); cashflowEl.className = `font-bold text-lg ${cashflow >= 0 ? 'text-green-600' : 'text-red-600'}`; }
+        }
+
+        // --- DYNAMIC HTML & ROW MANAGEMENT ---
+        function generateAllMonthlySheets(year) {
+             const tabContainer = document.getElementById('tab-container');
+             const sheetsContainer = document.getElementById('monthly-sheets-container');
+             document.querySelectorAll('.monthly-tab, .monthly-sheet').forEach(el => el.remove());
+             months.forEach((month) => {
+                const monthId = month.toLowerCase();
+                const button = document.createElement('button');
+                button.className = "tab-button monthly-tab py-2 px-4 border-b-2 border-transparent transition-colors duration-300";
+                button.textContent = month;
+                button.onclick = () => changeSheet(monthId, button);
+                tabContainer.appendChild(button);
+                const sheetDiv = document.createElement('div');
+                sheetDiv.id = `sheet-${monthId}`;
+                sheetDiv.className = 'sheet monthly-sheet';
+                sheetDiv.innerHTML = generateMonthlySheetHTML(month, year);
+                sheetsContainer.appendChild(sheetDiv);
+            });
+        }
+        function addPemasukanRow(monthId, initialData = {}) {
+            const tbody = document.getElementById(`${monthId}-pemasukan-body`);
+            const tr = tbody.insertRow();
+            tr.innerHTML = `<td class="p-2 align-top"><input type="date" class="w-full text-sm" value="${initialData.date || ''}" onchange="saveState(currentYear)"></td><td class="p-2 align-top">${createPemasukanDropdown()}</td><td class="p-2 align-top"><input type="text" class="w-full text-right text-sm pemasukan-jumlah" oninput="updateAllTotals(); saveState(currentYear);" onblur="formatInput(this); saveState(currentYear);" onfocus="unformatInput(this)" value="${initialData.jumlahRaw ? formatCurrency(initialData.jumlahRaw).replace(/\s*Rp\s*/, '').trim() : ''}" data-raw-value="${initialData.jumlahRaw || ''}"></td><td class="p-2 align-top"><input type="text" class="w-full text-sm" value="${initialData.catatan || ''}" oninput="saveState(currentYear)"></td><td class="p-2 align-top text-center"><button class="text-red-500 hover:text-red-700 font-bold text-lg" onclick="deleteRow(this);">&times;</button></td>`;
+            if (initialData.sumber) tr.querySelector('.pemasukan-sumber').value = initialData.sumber;
+        }
+        function addPengeluaranRow(monthId, initialData = {}) {
+            const tbody = document.getElementById(`${monthId}-pengeluaran-body`);
+            const tr = tbody.insertRow();
+            tr.innerHTML = `<td class="p-2 align-top"><input type="date" class="w-full text-sm" value="${initialData.date || ''}" onchange="saveState(currentYear)"></td><td class="p-2 align-top">${createPengeluaranDropdown()}</td><td class="p-2 align-top"><input type="text" class="w-full bg-slate-100 text-sm pengeluaran-alokasi" readonly value="${initialData.alokasi || ''}"></td><td class="p-2 align-top"><input type="text" class="w-full text-right text-sm pengeluaran-jumlah" oninput="updateAllTotals(); saveState(currentYear);" onblur="formatInput(this); saveState(currentYear);" onfocus="unformatInput(this)" value="${initialData.jumlahRaw ? formatCurrency(initialData.jumlahRaw).replace(/\s*Rp\s*/, '').trim() : ''}" data-raw-value="${initialData.jumlahRaw || ''}"></td><td class="p-2 align-top"><input type="text" class="w-full text-sm" value="${initialData.deskripsi || ''}" oninput="saveState(currentYear)"></td><td class="p-2 align-top"><input type="text" class="w-full text-sm" value="${initialData.metode || ''}" oninput="saveState(currentYear)"></td><td class="p-2 align-top"><input type="text" class="w-full text-sm" value="${initialData.tenor || ''}" oninput="saveState(currentYear)"></td><td class="p-2 align-top"><input type="date" class="w-full text-sm" value="${initialData.jatuhTempo || ''}" onchange="saveState(currentYear)"></td><td class="p-2 align-top text-center"><button class="text-red-500 hover:text-red-700 font-bold text-lg" onclick="deleteRow(this);">&times;</button></td>`;
+            if (initialData.kategori) tr.querySelector('.pengeluaran-kategori').value = initialData.kategori;
+            updateRowAllocation(tr.querySelector('.pengeluaran-kategori'));
+        }
+        function deleteRow(button) {
+            const tbody = button.closest('tbody');
+            button.closest('tr').remove();
+            if (tbody.rows.length === 0) {
+                const monthId = tbody.id.split('-')[0];
+                if (tbody.id.includes('pemasukan')) { addPemasukanRow(monthId); } else { addPengeluaranRow(monthId); }
+            }
+            updateAllTotals();
+            saveState(currentYear); 
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+        const parseCurrency = (text) => parseFloat(String(text).replace(/[^0-9,-]+/g, "").replace(",", ".")) || 0;
+        function formatInput(input) { const value = parseCurrency(input.value); input.setAttribute('data-raw-value', value); input.value = value > 0 ? formatCurrency(value).replace(/\s*Rp\s*/, '').trim() : ''; input.type = 'text'; }
+        function unformatInput(input) { input.type = 'number'; input.value = input.getAttribute('data-raw-value') || '0'; }
+        function changeSheet(sheetId, clickedElement) { document.querySelectorAll('.sheet').forEach(sheet => sheet.classList.remove('active')); document.getElementById(`sheet-${sheetId}`).classList.add('active'); document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active')); if (clickedElement) clickedElement.classList.add('active'); }
+        function createPemasukanDropdown() { return `<select class="w-full text-sm pemasukan-sumber" onchange="saveState(currentYear);">${sumberPemasukan.map(s => `<option value="${s}">${s}</option>`).join('')}</select>`; }
+        function createPengeluaranDropdown() { return `<select class="w-full text-sm pengeluaran-kategori" onchange="updateRowAllocation(this); saveState(currentYear);">${Object.keys(kategoriPengeluaran).map(k => `<option value="${k}">${k}</option>`).join('')}</select>`; }
+        function updateRowAllocation(selectElement) { const selectedCategory = selectElement.value; const allocation = kategoriPengeluaran[selectedCategory]; const row = selectElement.closest('tr'); row.querySelector('.pengeluaran-alokasi').value = allocation || ''; }
+        function populateCategories() { document.querySelectorAll('#setup-table tbody tr').forEach(tr => { const pemasukan = tr.cells[0].textContent.trim(); const pengeluaran = tr.cells[1].textContent.trim(); const alokasi = tr.cells[2].textContent.trim(); if (pemasukan) sumberPemasukan.push(pemasukan); if (pengeluaran) kategoriPengeluaran[pengeluaran] = alokasi; }); }
+        
+        function getSetupHTML() { /* Omitted for brevity, identical to previous version */ return `<h2 class="text-2xl font-semibold mb-4 text-slate-900">Setup & Kategori</h2><p class="text-slate-600 mb-6">Pusat data untuk semua dropdown. Perubahan di sini akan berlaku global.</p><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200" id="setup-table"><thead class="bg-slate-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Sumber Pemasukan</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Kategori Pengeluaran</th><th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Alokasi 50/30/20</th></tr></thead><tbody class="bg-white divide-y divide-slate-200"><tr><td class="px-6 py-4">Gaji Utama</td><td class="px-6 py-4">Kebutuhan Pokok</td><td class="px-6 py-4">Kebutuhan (50%)</td></tr><tr><td class="px-6 py-4">Freelance</td><td class="px-6 py-4">Transportasi</td><td class="px-6 py-4">Kebutuhan (50%)</td></tr><tr><td class="px-6 py-4">Proyek Sampingan</td><td class="px-6 py-4">Tagihan & Cicilan</td><td class="px-6 py-4">Kebutuhan (50%)</td></tr><tr><td class="px-6 py-4 font-semibold">Cashbon</td><td class="px-6 py-4">Paylater</td><td class="px-6 py-4">Kebutuhan (50%)</td></tr><tr><td class="px-6 py-4"></td><td class="px-6 py-4 font-semibold">Potongan Gaji</td><td class="px-6 py-4">Kebutuhan (50%)</td></tr><tr><td class="px-6 py-4"></td><td class="px-6 py-4">Hiburan & Keinginan</td><td class="px-6 py-4">Keinginan (30%)</td></tr><tr><td class="px-6 py-4"></td><td class="px-6 py-4">Investasi</td><td class="px-6 py-4">Saving/Invest (20%)</td></tr><tr><td class="px-6 py-4"></td><td class="px-6 py-4">Pendidikan & Kursus</td><td class="px-6 py-4">Saving/Invest (20%)</td></tr><tr><td class="px-6 py-4"></td><td class="px-6 py-4">Tidak Terduga</td><td class="px-6 py-4">Kebutuhan (50%)</td></tr></tbody></table></div>`;}
+        function generateMonthlySheetHTML(month, year) { const monthId = month.toLowerCase(); /* Omitted for brevity, identical to previous version */ return `<h2 class="text-2xl font-semibold mb-6 text-slate-900">Laporan Keuangan - ${month} ${year}</h2><div class="mb-8"><h3 class="text-xl font-semibold text-slate-800 mb-3">Pemasukan</h3><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/6">Tanggal</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/4">Sumber</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/5">Jumlah</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Catatan</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-12">Aksi</th></tr></thead><tbody id="${monthId}-pemasukan-body" class="bg-white divide-y divide-slate-200"></tbody><tfoot class="bg-slate-100"><tr><td colspan="2" class="px-2 py-3 text-right font-bold">TOTAL PEMASUKAN</td><td id="${monthId}-total-pemasukan" class="px-2 py-3 text-right font-bold">Rp 0</td><td colspan="2"></td></tr></tfoot></table></div><button onclick="addPemasukanRow('${monthId}')" class="mt-3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm">+ Tambah Baris</button></div><div class="mb-8"><h3 class="text-xl font-semibold text-slate-800 mb-3">Pengeluaran</h3><div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-32">Tanggal</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-40">Kategori</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-40">Alokasi</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-40">Jumlah</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Deskripsi</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-28">Metode</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-24">Tenor</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-32">Jatuh Tempo</th><th class="px-2 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-12">Aksi</th></tr></thead><tbody id="${monthId}-pengeluaran-body" class="bg-white divide-y divide-slate-200"></tbody><tfoot class="bg-slate-100"><tr><td colspan="3" class="px-2 py-3 text-right font-bold">TOTAL PENGELUARAN</td><td id="${monthId}-total-pengeluaran" class="px-2 py-3 text-right font-bold">Rp 0</td><td colspan="5"></td></tr><tr><td colspan="3" class="px-2 py-3 text-right font-semibold text-blue-800">TOTAL INVESTASI</td><td id="${monthId}-total-investasi" class="px-2 py-3 text-right font-semibold text-blue-800">Rp 0</td><td colspan="5"></td></tr></tfoot></table></div><button onclick="addPengeluaranRow('${monthId}')" class="mt-3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm">+ Tambah Baris</button></div><div class="bg-slate-100 p-4 rounded-lg"><h3 class="text-xl font-semibold text-slate-800 mb-2">Ringkasan Bulan ${month}</h3><div class="flex justify-around items-center"><div class="text-center"><p class="text-sm text-slate-500">Total Pemasukan</p><p class="font-bold text-lg text-slate-800">${document.getElementById(`${monthId}-total-pemasukan`)?.textContent||'Rp 0'}</p></div><div class="text-2xl text-slate-400">-</div><div class="text-center"><p class="text-sm text-slate-500">Total Pengeluaran</p><p class="font-bold text-lg text-slate-800">${document.getElementById(`${monthId}-total-pengeluaran`)?.textContent||'Rp 0'}</p></div><div class="text-2xl text-slate-400">=</div><div class="text-center"><p class="text-sm text-slate-500">Cashflow</p><p id="${monthId}-cashflow" class="font-bold text-lg">Rp 0</p></div></div></div>`;}
+
+        // --- CHARTING ---
+        function initCharts() {
+            const defaultOptions = { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } };
+            yearlyPieChart = new Chart(document.getElementById('yearlyPieChart'), { type: 'pie', options: defaultOptions });
+            yearlyBarChart = new Chart(document.getElementById('yearlyBarChart'), { type: 'bar', options: defaultOptions });
+            yearlyWaterfallChart = new Chart(document.getElementById('yearlyWaterfallChart'), { type: 'bar', options: { ...defaultOptions, scales: { x: { stacked: true }, y: { beginAtZero: true } } } });
+            yearlyLineChart = new Chart(document.getElementById('yearlyLineChart'), { type: 'line', options: defaultOptions });
+        }
+        function updateCharts() {
+            const data = getYearlyData(currentYear) || { pemasukan: {}, pengeluaran: {} };
+            const allPengeluaran = Object.values(data.pengeluaran || {}).flat();
+            const expenseByCategory = allPengeluaran.reduce((acc, curr) => {
+                acc[curr.kategori] = (acc[curr.kategori] || 0) + parseFloat(curr.jumlahRaw); return acc;
+            }, {});
+            yearlyPieChart.data = { labels: Object.keys(expenseByCategory), datasets: [{ data: Object.values(expenseByCategory), backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6'] }] };
+            const monthlyIncome = months.map(m => parseCurrency(document.getElementById(`${m.toLowerCase()}-total-pemasukan`)?.textContent || '0'));
+            const monthlyExpense = months.map(m => parseCurrency(document.getElementById(`${m.toLowerCase()}-total-pengeluaran`)?.textContent || '0'));
+            const monthlyCashflow = monthlyIncome.map((inc, i) => inc - monthlyExpense[i]);
+            yearlyBarChart.data = { labels: months, datasets: [{ label: 'Pemasukan', data: monthlyIncome, backgroundColor: '#22c55e' },{ label: 'Pengeluaran', data: monthlyExpense, backgroundColor: '#ef4444' }]};
+            yearlyLineChart.data = { labels: months, datasets: [{ label: 'Cashflow Bulanan', data: monthlyCashflow, borderColor: '#3b82f6', fill: false, tension: 0.1 }] };
+            const totalIncome = monthlyIncome.reduce((a, b) => a + b, 0);
+            const waterfallData = []; const waterfallLabels = ['Total Pemasukan']; const waterfallColors = ['#22c55e'];
+            let runningTotal = totalIncome;
+            waterfallData.push([0, totalIncome]);
+            Object.entries(expenseByCategory).forEach(([category, amount]) => {
+                waterfallLabels.push(category); waterfallData.push([runningTotal - amount, runningTotal]); waterfallColors.push('#ef4444'); runningTotal -= amount;
+            });
+            waterfallLabels.push('Total Cashflow'); waterfallData.push([0, runningTotal]); waterfallColors.push('#3b82f6');
+            yearlyWaterfallChart.data = { labels: waterfallLabels, datasets: [{ label: 'Cashflow Analysis', data: waterfallData, backgroundColor: waterfallColors }] };
+            yearlyPieChart.update(); yearlyBarChart.update(); yearlyLineChart.update(); yearlyWaterfallChart.update();
+        }
+
+        // --- EXPORT TO EXCEL ---
+        function exportToExcel(tableID, filename = '') {
+            const table = document.getElementById(tableID); let csv = [];
+            for (const row of table.rows) {
+                const rowData = [];
+                for (const cell of row.cells) {
+                    let text = cell.textContent.trim().replace(/"/g, '""');
+                    if (text.includes(',')) text = `"${text}"`;
+                    rowData.push(text);
+                }
+                csv.push(rowData.join(','));
+            }
+            const csvContent = "data:text/csv;charset=utf-8," + csv.join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", filename || 'export.csv');
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
